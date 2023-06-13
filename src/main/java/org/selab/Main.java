@@ -77,31 +77,19 @@ public class Main {
                             " from commits c, files f where c.commit_id = f.commit_id and c.project_name = '" + project + "'" +
                             " and c.merged_commit_status != 'T' " +
                             " order by file_id, commit_id ");
+
             ResultSet fileRS = fileSel.executeQuery();
+            System.out.println("Collecting data is end.");
+
             while (fileRS.next()) {
-                String str = String.join(",",
-                        String.valueOf(fileRS.getInt("commit_id")),
-                        fileRS.getString("old_commit"),
-                        fileRS.getString("new_commit"),
-                        fileRS.getString("file_path"),
-                        String.valueOf(fileRS.getInt("file_id")));
-                fileInfo.add(str);
-            }
+                int commitId = fileRS.getInt("commit_id");
+                String oldCommitId = fileRS.getString("old_commit");
+                String newCommitId = fileRS.getString("new_commit");
+                String filePath = fileRS.getString("file_path");
+                int fileId = fileRS.getInt("file_id");
 
-            fileRS.close();
-            fileSel.close();
-
-            System.out.println("Total " + fileInfo.size() + " revisions.");
-
-            for (int i = 0; i < fileInfo.size(); i++) {
-                String key = fileInfo.get(i);
-                String[] tokens = key.split(",");
-                String commitId = tokens[0];
-                String oldCommitId = tokens[1];
-                String newCommitId = tokens[2];
-                String filePath = tokens[3];
-                String fileId = tokens[4];
-                System.out.println("CommitId : " + commitId + ", fileId : " + fileId + ", oldCommitId : " + oldCommitId + ", newCommitId : " + newCommitId);
+                System.out.println("CommitId : " + commitId + ", fileId : " + fileId + ", oldCommitId : "
+                        + oldCommitId + ", newCommitId : " + newCommitId);
 
                 // Reset hard to old/new commit IDs.
                 long gitResetStartTime = System.currentTimeMillis();
@@ -152,7 +140,7 @@ public class Main {
                             for (ESNodeEdit esNodeEdit : scriptLAS.editOps) {
                                 psLAS.clearParameters();
                                 psLASrunTime.clearParameters();
-                                psLAS.setInt(1, Integer.parseInt(fileId));         //file_id
+                                psLAS.setInt(1, fileId);         //file_id
                                 psLAS.setString(2, tool);           //tool: GT, etc..
 
                                 // ESNodeEdit
@@ -172,7 +160,7 @@ public class Main {
                                 psLAS.setInt(14, esNodeEdit.node.length);
                                 psLAS.setString(15, esNodeEdit.node.label);
 
-                                psLASrunTime.setInt(1, Integer.parseInt(fileId));         //file_id
+                                psLASrunTime.setInt(1, fileId);         //file_id
                                 psLASrunTime.setLong(2, gitResetElapsedTime);
                                 psLASrunTime.setLong(3, runtimeOfLAS);
                                 psLASrunTime.setInt(4, exactMatchTime);
@@ -205,14 +193,17 @@ public class Main {
                         E.printStackTrace();
                     }
                 }
-
-                // Committing for the rest of the syntax that has not been committed
-                psLAS.executeBatch();
-                psLASrunTime.executeBatch();
-                con.commit();
-                psLAS.clearBatch();
-                psLASrunTime.clearBatch();
             }
+
+            // Committing for the rest of the syntax that has not been committed
+            psLAS.executeBatch();
+            psLASrunTime.executeBatch();
+            con.commit();
+            psLAS.clearBatch();
+            psLASrunTime.clearBatch();
+
+            fileRS.close();
+            fileSel.close();
 
             if (psLAS != null){psLAS.close(); psLAS = null;}
             if (psLASrunTime != null){psLASrunTime.close(); psLASrunTime = null;}
